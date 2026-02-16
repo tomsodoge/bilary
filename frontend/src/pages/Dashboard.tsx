@@ -27,12 +27,6 @@ const Dashboard: React.FC = () => {
   const [syncDays, setSyncDays] = useState<number>(30);
   const [includeAll, setIncludeAll] = useState<boolean>(false);
 
-  // #region agent log
-  React.useEffect(() => {
-    console.log('[Dashboard] Current filters:', filters);
-    console.log('[Dashboard] Invoices loaded:', invoices.length);
-  }, [filters, invoices]);
-  // #endregion
 
   // Redirect to connect page if not connected
   React.useEffect(() => {
@@ -69,18 +63,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // #region agent log
-  React.useEffect(() => {
-    if (invoices.length > 0) {
-      const years = invoices.reduce((acc, inv) => {
-        const year = inv.received_date.substring(0, 4);
-        acc[year] = (acc[year] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      console.log('[Dashboard] Showing invoices by year:', years);
-    }
-  }, [invoices]);
-  // #endregion
 
   return (
     <div className="page-container">

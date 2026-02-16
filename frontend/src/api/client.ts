@@ -8,10 +8,23 @@ import type {
   AccountInfo
 } from '../types/invoice';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Get API base URL from environment, fallback to localhost only in development
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (import.meta.env.DEV ? 'http://localhost:8000' : '');
+
+// Validate API_BASE_URL in production
+if (!import.meta.env.DEV && !API_BASE_URL) {
+  console.error('[API Client] ERROR: VITE_API_BASE_URL is not set! API calls will fail.');
+  console.error('[API Client] Please set VITE_API_BASE_URL in Vercel Environment Variables.');
+}
+
+// Ensure HTTPS in production
+const validatedApiBaseUrl = API_BASE_URL 
+  ? (import.meta.env.DEV ? API_BASE_URL : API_BASE_URL.replace(/^http:/, 'https:'))
+  : '';
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: validatedApiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -113,6 +126,11 @@ export const invoicesAPI = {
 // Export API
 export const exportAPI = {
   downloadZip: (options: ExportOptions) => {
+    if (!validatedApiBaseUrl) {
+      console.error('[Export API] Cannot download: API_BASE_URL is not set');
+      return;
+    }
+    
     const params = new URLSearchParams({
       year: String(options.year),
       type: options.type,
@@ -123,7 +141,7 @@ export const exportAPI = {
     }
 
     // Create a download link
-    const url = `${API_BASE_URL}/api/export/zip?${params.toString()}`;
+    const url = `${validatedApiBaseUrl}/api/export/zip?${params.toString()}`;
     const link = document.createElement('a');
     link.href = url;
     link.click();

@@ -70,15 +70,18 @@ const Connect: React.FC = () => {
     }
   }, [searchParams, setSearchParams, checkStatus]);
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  // Get API base URL from environment, fallback to localhost only in development
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 
+    (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
   const handleGoogleSignIn = () => {
     setGoogleError('');
     setSuccessMessage('');
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/132a3761-33e3-4a2d-afe6-1dd23056f9ee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'frontend/src/pages/Connect.tsx:handleGoogleSignIn',message:'handleGoogleSignIn entry',data:{apiBase,windowLocation:window.location.href},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
+    if (!apiBase) {
+      setGoogleError('API-URL ist nicht konfiguriert. Bitte VITE_API_BASE_URL setzen.');
+      return;
+    }
 
     const width = 500;
     const height = 600;
@@ -87,34 +90,24 @@ const Connect: React.FC = () => {
 
     const url = `${apiBase}/api/auth/google?mode=popup`;
     const features = `width=${width},height=${height},left=${left},top=${top}`;
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/132a3761-33e3-4a2d-afe6-1dd23056f9ee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'frontend/src/pages/Connect.tsx:handleGoogleSignIn',message:'before window.open',data:{url,apiBase},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
 
     const popup = window.open(url, 'google-oauth', features);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/132a3761-33e3-4a2d-afe6-1dd23056f9ee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'frontend/src/pages/Connect.tsx:handleGoogleSignIn',message:'after window.open',data:{popupBlocked:!popup,popupClosed:popup?popup.closed:null},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
-
     if (!popup) {
       // Fallback: voller Redirect, wenn der Browser Popups blockiert
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/132a3761-33e3-4a2d-afe6-1dd23056f9ee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'frontend/src/pages/Connect.tsx:handleGoogleSignIn',message:'popup blocked, using fallback redirect',data:{fallbackUrl:`${apiBase}/api/auth/google`},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
       window.location.href = `${apiBase}/api/auth/google`;
     }
   };
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/132a3761-33e3-4a2d-afe6-1dd23056f9ee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'frontend/src/pages/Connect.tsx:messageHandler',message:'postMessage received',data:{eventOrigin:event.origin,windowOrigin:window.location.origin,data:event.data,originMatch:event.origin===window.location.origin},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
+      // Accept messages from same origin or from backend domain (for OAuth popup)
+      const allowedOrigins = [
+        window.location.origin,
+        apiBase ? new URL(apiBase).origin : null
+      ].filter(Boolean);
 
-      // Nur Messages vom gleichen Origin akzeptieren
-      if (event.origin !== window.location.origin) return;
+      if (!allowedOrigins.includes(event.origin)) return;
 
       if (event.data === 'google-auth-success') {
         setGoogleError('');
@@ -130,7 +123,7 @@ const Connect: React.FC = () => {
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [checkStatus]);
+  }, [checkStatus, apiBase]);
 
   return (
     <div className="page-container">

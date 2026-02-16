@@ -21,23 +21,11 @@ export const useInvoices = (initialFilters?: InvoiceFilters) => {
     try {
       setLoading(true);
       setError(null);
-      // #region agent log
-      console.log('[useInvoices] Fetching with filters:', filters);
-      // #endregion
       const data = await invoicesAPI.list(filters);
-      // #region agent log
-      console.log('[useInvoices] Received invoices:', data.length);
-      if (data.length > 0) {
-        console.log('[useInvoices] Date range:', data[data.length - 1]?.received_date, 'to', data[0]?.received_date);
-      }
-      // #endregion
       if (isMounted.current) {
         setInvoices(data);
       }
     } catch (err) {
-      // #region agent log
-      console.error('[useInvoices] Fetch error:', err);
-      // #endregion
       if (isMounted.current) {
         setError(err instanceof Error ? err.message : 'Failed to fetch invoices');
       }
