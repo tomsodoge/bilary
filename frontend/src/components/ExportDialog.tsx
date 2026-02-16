@@ -93,7 +93,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose }) => {
                   name="export-type"
                   value="business"
                   checked={options.type === 'business'}
-                  onChange={(e) => setOptions({ ...options, type: 'business' })}
+                  onChange={() => setOptions({ ...options, type: 'business' })}
                 />
                 Business
               </label>
@@ -103,7 +103,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose }) => {
                   name="export-type"
                   value="private"
                   checked={options.type === 'private'}
-                  onChange={(e) => setOptions({ ...options, type: 'private' })}
+                  onChange={() => setOptions({ ...options, type: 'private' })}
                 />
                 Private
               </label>

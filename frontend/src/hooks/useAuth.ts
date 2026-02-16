@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authAPI } from '../api/client';
-import type { ConnectionStatus, AccountInfo } from '../types/invoice';
+import type { ConnectionStatus } from '../types/invoice';
 
 export const useAuth = () => {
   const [status, setStatus] = useState<ConnectionStatus | null>(null);

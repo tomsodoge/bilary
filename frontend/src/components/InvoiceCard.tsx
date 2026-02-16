@@ -5,7 +5,7 @@ import CategoryBadge from './CategoryBadge';
 
 interface InvoiceCardProps {
   invoice: Invoice;
-  onUpdate: (id: number, data: { category?: string; is_private?: boolean }) => Promise<void>;
+  onUpdate: (id: number, data: { category?: string; is_private?: boolean }) => Promise<Invoice | void>;
   onDelete: (id: number) => Promise<void>;
 }
 

@@ -4,7 +4,7 @@ import InvoiceCard from './InvoiceCard';
 
 interface InvoiceListProps {
   invoices: Invoice[];
-  onUpdate: (id: number, data: { category?: string; is_private?: boolean }) => Promise<void>;
+  onUpdate: (id: number, data: { category?: string; is_private?: boolean }) => Promise<Invoice | void>;
   onDelete: (id: number) => Promise<void>;
 }
 
@@ -133,7 +133,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ invoices, onUpdate, onDelete 
     }
     
     // Sort groups alphabetically
-    const sortedEntries = Object.entries(result).sort(([domainA, groupA], [domainB, groupB]) => {
+    const sortedEntries = Object.entries(result).sort(([, groupA], [, groupB]) => {
       const nameA = groupA.displayName.toLowerCase();
       const nameB = groupB.displayName.toLowerCase();
       

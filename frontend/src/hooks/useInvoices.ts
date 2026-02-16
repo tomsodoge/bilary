@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoicesAPI } from '../api/client';
 import type { Invoice, InvoiceFilters } from '../types/invoice';
 
