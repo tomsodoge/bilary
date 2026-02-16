@@ -96,14 +96,15 @@ export const useInvoices = (initialFilters?: InvoiceFilters) => {
     return () => {
       isMounted.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchInvoices intentionally omitted to run only on mount
   }, []);
   
   // Separate effect for filter changes
   useEffect(() => {
-    // Skip initial mount
     if (hasFetchedInitial.current) {
       fetchInvoices();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchInvoices uses filters from closure; deps are filter fields only
   }, [filters.sender, filters.category, filters.is_private, filters.start_date, filters.end_date]);
 
   return {

@@ -24,7 +24,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange }) => {
     }
   };
 
-  const handleFilterChange = (key: keyof InvoiceFilters, value: any) => {
+  const handleFilterChange = (key: keyof InvoiceFilters, value: string | boolean | undefined) => {
     onFiltersChange({
       ...filters,
       [key]: value === '' ? undefined : value,

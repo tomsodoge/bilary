@@ -29,10 +29,11 @@ const apiClient = axios.create({
   timeout: 60000, // 60s default for normal requests
 });
 
-// Request interceptor: ensure HTTPS in production (guard against wrong env at build time)
+// Request interceptor: ensure HTTPS when page is loaded over HTTPS (Mixed Content fix at runtime)
 apiClient.interceptors.request.use(
   (config) => {
-    if (!import.meta.env.DEV && typeof config.baseURL === 'string' && config.baseURL.startsWith('http://')) {
+    if (typeof config.baseURL === 'string' && config.baseURL.startsWith('http://') &&
+        typeof window !== 'undefined' && window.location?.protocol === 'https:') {
       config.baseURL = config.baseURL.replace(/^http:\/\//i, 'https://');
     }
     return config;
@@ -46,11 +47,15 @@ apiClient.interceptors.response.use(
   (error) => {
     let message = error.response?.data?.detail ?? error.message ?? 'An error occurred';
     if (typeof message === 'object') message = JSON.stringify(message);
-    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-      message = 'Verbindung zum Server fehlgeschlagen. Prüfe die Internetverbindung und ob die App (Railway) läuft.';
-    }
+    const status = error.response?.status;
     if (error.code === 'ECONNABORTED') {
       message = 'Zeitüberschreitung. Der Sync dauert zu lange – versuche einen kürzeren Zeitraum.';
+    } else if (status && status >= 500) {
+      message = 'Serverfehler. Bitte in ein paar Minuten erneut versuchen.';
+    } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      message = status != null
+        ? 'Netzwerkfehler. Bitte Internetverbindung prüfen.'
+        : 'Verbindung zum Server fehlgeschlagen. Prüfe die Internetverbindung und ob die App (Railway) läuft.';
     }
     return Promise.reject(new Error(message));
   }
@@ -146,7 +151,10 @@ export const exportAPI = {
       console.error('[Export API] Cannot download: API_BASE_URL is not set');
       return;
     }
-    
+    // Use HTTPS when page is loaded over HTTPS (Mixed Content)
+    const base = (typeof window !== 'undefined' && window.location?.protocol === 'https:' && validatedApiBaseUrl.startsWith('http://'))
+      ? validatedApiBaseUrl.replace(/^http:\/\//i, 'https://') : validatedApiBaseUrl;
+
     const params = new URLSearchParams({
       year: String(options.year),
       type: options.type,
@@ -157,7 +165,7 @@ export const exportAPI = {
     }
 
     // Create a download link
-    const url = `${validatedApiBaseUrl}/api/export/zip?${params.toString()}`;
+    const url = `${base}/api/export/zip?${params.toString()}`;
     const link = document.createElement('a');
     link.href = url;
     link.click();

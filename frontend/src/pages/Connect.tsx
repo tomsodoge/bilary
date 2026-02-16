@@ -70,9 +70,11 @@ const Connect: React.FC = () => {
     }
   }, [searchParams, setSearchParams, checkStatus]);
 
-  // Get API base URL from environment, fallback to localhost only in development
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 
+  // Get API base URL; force HTTPS when page is loaded over HTTPS (Mixed Content)
+  const rawApiBase = import.meta.env.VITE_API_BASE_URL ||
     (import.meta.env.DEV ? 'http://localhost:8000' : '');
+  const apiBase = (typeof window !== 'undefined' && window.location?.protocol === 'https:' && rawApiBase.startsWith('http://'))
+    ? rawApiBase.replace(/^http:\/\//i, 'https://') : rawApiBase;
 
   const handleGoogleSignIn = () => {
     setGoogleError('');

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Invoice } from '../types/invoice';
+import type { Invoice, Category } from '../types/invoice';
 import { CATEGORIES } from '../types/invoice';
 import CategoryBadge from './CategoryBadge';
 
@@ -119,7 +119,7 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ invoice, onUpdate, onDelete }
             </button>
           </div>
         ) : (
-          <CategoryBadge category={invoice.category as any} onClick={() => setIsEditing(true)} />
+          <CategoryBadge category={invoice.category as Category} onClick={() => setIsEditing(true)} />
         )}
 
         <span className={`privacy-badge ${invoice.is_private ? 'private' : 'business'}`}>
