@@ -11,8 +11,12 @@ from routers import auth, invoices, export
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup"""
-    await db.initialize()
-    print("Database initialized")
+    try:
+        await db.initialize()
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"ERROR: Database initialization failed: {e}")
+        raise
     yield
 
 # Create FastAPI app

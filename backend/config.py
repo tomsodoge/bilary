@@ -60,7 +60,11 @@ class Settings:
     
     def __init__(self):
         # Ensure directories exist
-        Path(self.DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.STORAGE_PATH).mkdir(parents=True, exist_ok=True)
+        try:
+            Path(self.DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)
+            Path(self.STORAGE_PATH).mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            print(f"Warning: Could not create directories: {e}")
+            # Continue anyway - Railway will create them if needed
 
 settings = Settings()
