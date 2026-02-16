@@ -13,7 +13,7 @@ from typing import List
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
-DEBUG_LOG_PATH = "/Users/tomsodoge/Desktop/ontrack-app/.cursor/debug.log"
+DEBUG_LOG_PATH = "/Users/tomsodoge/Desktop/bilary/.cursor/debug.log"
 
 # Google OAuth
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"

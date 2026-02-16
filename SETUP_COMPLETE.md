@@ -60,7 +60,7 @@ Frontend runs at: http://localhost:5173
 ## Project Structure
 
 ```
-ontrack-app/
+bilary/
 ├── backend/              # Python FastAPI backend
 │   ├── main.py          # Application entry point
 │   ├── config.py        # Configuration

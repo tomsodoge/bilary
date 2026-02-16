@@ -3,7 +3,7 @@
 ## 1. Repository auf GitHub anlegen
 
 1. Gehe zu [github.com/new](https://github.com/new).
-2. **Repository name:** z. B. `ontrack-app`.
+2. **Repository name:** z. B. `bilary`.
 3. **Public** wählen, **kein** README, .gitignore oder License hinzufügen (Projekt existiert schon lokal).
 4. Auf **Create repository** klicken.
 
@@ -12,12 +12,12 @@
 Im Projektordner im Terminal ausführen (URL durch deine GitHub-Repo-URL ersetzen):
 
 ```bash
-cd /Users/tomsodoge/Desktop/ontrack-app
-git remote add origin https://github.com/DEIN-USERNAME/ontrack-app.git
+cd /Users/tomsodoge/Desktop/bilary
+git remote add origin https://github.com/DEIN-USERNAME/bilary.git
 git push -u origin main
 ```
 
-(Falls du SSH nutzt: `git@github.com:DEIN-USERNAME/ontrack-app.git`)
+(Falls du SSH nutzt: `git@github.com:DEIN-USERNAME/bilary.git`)
 
 ## 3. Projekt in Vercel anlegen
 

@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Invoice Manager API",
+    title="Bilary API",
     description="API for managing email invoices",
     version="1.0.0",
     lifespan=lifespan
@@ -46,7 +46,7 @@ if storage_path.exists():
 async def root():
     """Root endpoint"""
     return {
-        "message": "Invoice Manager API",
+        "message": "Bilary API",
         "version": "1.0.0",
         "docs": "/docs"
     }

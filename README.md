@@ -1,4 +1,4 @@
-# Invoice Manager
+# Bilary
 
 A full-stack web application for managing email invoices with automatic extraction, categorization, and export features.
 
@@ -39,7 +39,7 @@ A full-stack web application for managing email invoices with automatic extracti
 ### 1. Clone or navigate to the project
 
 ```bash
-cd ontrack-app
+cd bilary
 ```
 
 ### 2. Backend Setup
