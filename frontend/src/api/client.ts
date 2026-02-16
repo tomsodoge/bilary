@@ -9,38 +9,49 @@ import type {
 } from '../types/invoice';
 
 // Get API base URL from environment, fallback to localhost only in development
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 
   (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
-// Validate API_BASE_URL in production
-if (!import.meta.env.DEV && !API_BASE_URL) {
-  console.error('[API Client] ERROR: VITE_API_BASE_URL is not set! API calls will fail.');
-  console.error('[API Client] Please set VITE_API_BASE_URL in Vercel Environment Variables.');
-}
-
-// Ensure HTTPS in production
-const validatedApiBaseUrl = API_BASE_URL 
-  ? (import.meta.env.DEV ? API_BASE_URL : API_BASE_URL.replace(/^http:/, 'https:'))
+// Validate and enforce HTTPS in production (Mixed Content fix)
+const validatedApiBaseUrl = rawApiBaseUrl
+  ? (import.meta.env.DEV ? rawApiBaseUrl : rawApiBaseUrl.replace(/^http:\/\//i, 'https://'))
   : '';
+
+if (!import.meta.env.DEV && !validatedApiBaseUrl) {
+  console.error('[API Client] VITE_API_BASE_URL is not set. Set it in Vercel Environment Variables.');
+}
 
 const apiClient = axios.create({
   baseURL: validatedApiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 60000, // 60s default for normal requests
 });
 
-// Request interceptor for error handling
+// Request interceptor: ensure HTTPS in production (guard against wrong env at build time)
 apiClient.interceptors.request.use(
-  (config) => config,
+  (config) => {
+    if (!import.meta.env.DEV && typeof config.baseURL === 'string' && config.baseURL.startsWith('http://')) {
+      config.baseURL = config.baseURL.replace(/^http:\/\//i, 'https://');
+    }
+    return config;
+  },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Response interceptor: clear error messages and enforce HTTPS
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.detail || error.message || 'An error occurred';
+    let message = error.response?.data?.detail ?? error.message ?? 'An error occurred';
+    if (typeof message === 'object') message = JSON.stringify(message);
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      message = 'Verbindung zum Server fehlgeschlagen. Prüfe die Internetverbindung und ob die App (Railway) läuft.';
+    }
+    if (error.code === 'ECONNABORTED') {
+      message = 'Zeitüberschreitung. Der Sync dauert zu lange – versuche einen kürzeren Zeitraum.';
+    }
     return Promise.reject(new Error(message));
   }
 );
@@ -72,6 +83,9 @@ export const authAPI = {
   },
 };
 
+// Sync can take a long time (many emails) – use 5 min timeout
+const SYNC_TIMEOUT_MS = 5 * 60 * 1000;
+
 // Invoices API
 export const invoicesAPI = {
   sync: async (options?: { daysBack?: number; year?: number; includeAll?: boolean }) => {
@@ -81,7 +95,9 @@ export const invoicesAPI = {
     if (options?.includeAll) params.append('include_all', 'true');
     
     const response = await apiClient.post<SyncResponse>(
-      `/api/invoices/sync?${params.toString()}`
+      `/api/invoices/sync?${params.toString()}`,
+      {},
+      { timeout: SYNC_TIMEOUT_MS }
     );
     return response.data;
   },

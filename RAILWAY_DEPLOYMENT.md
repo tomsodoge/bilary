@@ -56,7 +56,7 @@ GOOGLE_CLIENT_SECRET=<wird nach Google Cloud Console Setup gesetzt>
 2. Settings → Environment Variables
 3. Füge hinzu:
    - **Name:** `VITE_API_BASE_URL`
-   - **Value:** Deine Railway-URL (z.B. `https://bilary-production.up.railway.app`)
+   - **Value:** Deine Railway-URL **mit https://** (z.B. `https://bilary-production.up.railway.app`) – **kein http://**, sonst Mixed Content / Network Error
    - **Environment:** Production, Preview, Development (alle auswählen)
 4. Klicke "Save"
 5. Trigger einen neuen Deploy (oder warte auf automatischen Deploy)
@@ -82,6 +82,11 @@ Ohne dieses Setting erkennt Railway das Python-Projekt nicht, weil sowohl `backe
 - Stelle sicher, dass `requirements.txt` alle Dependencies enthält
 - Prüfe, ob `PORT` Environment Variable gesetzt ist (Railway setzt diese automatisch)
 - Stelle sicher, dass Root Directory auf `backend` gesetzt ist
+
+### Network Error / Mixed Content beim Sync
+- Stelle sicher, dass `VITE_API_BASE_URL` auf Vercel **mit https://** gesetzt ist (nicht `http://`).
+- Nach Änderung der Variable: **Redeploy** auf Vercel auslösen (VITE_* wird beim Build eingebettet).
+- Prüfe im Browser (DevTools → Network), ob Requests zu `https://...railway.app` gehen.
 
 ### CORS Errors
 - Stelle sicher, dass `CORS_ORIGINS` deine Vercel-URL enthält
