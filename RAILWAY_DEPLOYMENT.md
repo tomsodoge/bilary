@@ -65,6 +65,25 @@ GOOGLE_CLIENT_SECRET=<wird nach Google Cloud Console Setup gesetzt>
 
 Siehe `GOOGLE_OAUTH_SETUP.md` für detaillierte Anweisungen.
 
+## Wichtig: SPA Routing auf Vercel
+
+Für Single Page Applications (React Router) muss eine `vercel.json` im Frontend-Verzeichnis existieren:
+
+```json
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+Diese Datei ist bereits im Repository enthalten (`frontend/vercel.json`).
+
+**Ohne diese Datei:** Direkte URLs wie `/dashboard` geben einen 404-Fehler.
+
 ## Troubleshooting
 
 ### "Railpack could not determine how to build the app"
