@@ -83,10 +83,28 @@ Ohne dieses Setting erkennt Railway das Python-Projekt nicht, weil sowohl `backe
 - Prüfe, ob `PORT` Environment Variable gesetzt ist (Railway setzt diese automatisch)
 - Stelle sicher, dass Root Directory auf `backend` gesetzt ist
 
-### Network Error / Mixed Content beim Sync
-- Stelle sicher, dass `VITE_API_BASE_URL` auf Vercel **mit https://** gesetzt ist (nicht `http://`).
-- Nach Änderung der Variable: **Redeploy** auf Vercel auslösen (VITE_* wird beim Build eingebettet).
-- Prüfe im Browser (DevTools → Network), ob Requests zu `https://...railway.app` gehen.
+### Mixed Content: "requested an insecure XMLHttpRequest endpoint 'http://...'"
+Die Seite läuft auf HTTPS, der Request geht aber an `http://...` → Browser blockiert.
+
+**Checkliste (der Reihe nach prüfen):**
+
+1. **Vercel Environment Variable**
+   - Vercel → Projekt → **Settings** → **Environment Variables**
+   - Eintrag **`VITE_API_BASE_URL`**:
+     - Wert **genau:** `https://bilary-production.up.railway.app` (mit `https://`, **kein** `http://`, kein Leerzeichen, kein Slash am Ende)
+   - Environment: **Production** (und ggf. Preview) auswählen → **Save**
+
+2. **Neuen Build auslösen**
+   - `VITE_*`-Variablen werden **nur beim Build** eingebettet. Nach Änderung:
+   - Vercel → **Deployments** → bei dem letzten Deployment **⋯** → **Redeploy** (ohne "Use existing Build Cache" oder Cache leeren)
+   - Warten, bis der neue Deploy fertig ist
+
+3. **Browser-Cache umgehen**
+   - Seite mit **Hard Reload** neu laden: **Ctrl+Shift+R** (Windows/Linux) bzw. **Cmd+Shift+R** (Mac)
+   - Oder im gleichen Tab: DevTools (F12) → Rechtsklick auf Reload → **Empty Cache and Hard Reload**
+
+4. **Im Code**
+   - Die App erzwingt in Produktion im Request-Interceptor **immer** HTTPS, wenn die Seite über HTTPS läuft. Wenn du trotzdem `http://` siehst, kommt die Anforderung sehr wahrscheinlich noch von einem **alten Build** (siehe 2. und 3.).
 
 ### Zeitüberschreitung beim Sync (z. B. Jahr 2025)
 - Der Sync nutzt im Frontend ein Timeout von 15 Minuten; das Backend lädt E-Mails in Batches (schneller).

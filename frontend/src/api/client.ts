@@ -12,10 +12,12 @@ import type {
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 
   (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
-// Validate and enforce HTTPS in production (Mixed Content fix)
-const validatedApiBaseUrl = rawApiBaseUrl
-  ? (import.meta.env.DEV ? rawApiBaseUrl : rawApiBaseUrl.replace(/^http:\/\//i, 'https://'))
-  : '';
+// Always enforce HTTPS in production to prevent Mixed Content (browser blocks http from https pages)
+function toHttpsIfNeeded(url: string): string {
+  if (!url || import.meta.env.DEV) return url;
+  return url.replace(/^http:\/\//i, 'https://');
+}
+const validatedApiBaseUrl = rawApiBaseUrl ? toHttpsIfNeeded(rawApiBaseUrl) : '';
 
 if (!import.meta.env.DEV && !validatedApiBaseUrl) {
   console.error('[API Client] VITE_API_BASE_URL is not set. Set it in Vercel Environment Variables.');
@@ -29,12 +31,15 @@ const apiClient = axios.create({
   timeout: 60000, // 60s default for normal requests
 });
 
-// Request interceptor: ensure HTTPS when page is loaded over HTTPS (Mixed Content fix at runtime)
+// Request interceptor: force HTTPS on every request when page is HTTPS (Mixed Content fix)
+// Axios may not put instance baseURL on config, so we fix the effective base URL here.
 apiClient.interceptors.request.use(
   (config) => {
-    if (typeof config.baseURL === 'string' && config.baseURL.startsWith('http://') &&
-        typeof window !== 'undefined' && window.location?.protocol === 'https:') {
-      config.baseURL = config.baseURL.replace(/^http:\/\//i, 'https://');
+    if (typeof window === 'undefined') return config;
+    if (window.location?.protocol !== 'https:') return config;
+    const base = (config.baseURL ?? apiClient.defaults.baseURL) as string | undefined;
+    if (typeof base === 'string' && base.startsWith('http://')) {
+      config.baseURL = base.replace(/^http:\/\//i, 'https://');
     }
     return config;
   },
@@ -151,7 +156,6 @@ export const exportAPI = {
       console.error('[Export API] Cannot download: API_BASE_URL is not set');
       return;
     }
-    // Use HTTPS when page is loaded over HTTPS (Mixed Content)
     const base = (typeof window !== 'undefined' && window.location?.protocol === 'https:' && validatedApiBaseUrl.startsWith('http://'))
       ? validatedApiBaseUrl.replace(/^http:\/\//i, 'https://') : validatedApiBaseUrl;
 
