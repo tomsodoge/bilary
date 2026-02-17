@@ -19,13 +19,15 @@ function toHttpsIfNeeded(url: string): string {
 }
 const validatedApiBaseUrl = rawApiBaseUrl ? toHttpsIfNeeded(rawApiBaseUrl) : '';
 
-// DEBUG: Log the API base URL in production to verify it's correct
-if (!import.meta.env.DEV) {
-  console.log('[API Client] Raw VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
-  console.log('[API Client] Validated API Base URL:', validatedApiBaseUrl);
-  console.log('[API Client] Is DEV:', import.meta.env.DEV);
-  console.log('[API Client] Mode:', import.meta.env.MODE);
-}
+// #region agent log – Hypothesis A,B,D: Check what values Vite embedded at build time
+console.log('%c[DEBUG] BUILD_ID: 2026-02-17-v2', 'color: red; font-weight: bold');
+console.log('%c[DEBUG] VITE_API_BASE_URL:', 'color: red', import.meta.env.VITE_API_BASE_URL);
+console.log('%c[DEBUG] rawApiBaseUrl:', 'color: red', rawApiBaseUrl);
+console.log('%c[DEBUG] validatedApiBaseUrl:', 'color: red', validatedApiBaseUrl);
+console.log('%c[DEBUG] DEV:', 'color: red', import.meta.env.DEV);
+console.log('%c[DEBUG] MODE:', 'color: red', import.meta.env.MODE);
+console.log('%c[DEBUG] PROD:', 'color: red', import.meta.env.PROD);
+// #endregion
 
 if (!import.meta.env.DEV && !validatedApiBaseUrl) {
   console.error('[API Client] VITE_API_BASE_URL is not set. Set it in Vercel Environment Variables.');
@@ -41,15 +43,33 @@ const apiClient = axios.create({
 
 // Request interceptor: force HTTPS on every request when page is HTTPS (Mixed Content fix)
 // Axios may not put instance baseURL on config, so we fix the effective base URL here.
+// #region agent log – Hypothesis C,E: Check what axios instance holds
+console.log('%c[DEBUG] apiClient.defaults.baseURL:', 'color: orange', apiClient.defaults.baseURL);
+// #endregion
+
 apiClient.interceptors.request.use(
   (config) => {
+    // #region agent log – Hypothesis C: Log every request's URL construction
+    console.log('%c[DEBUG] Interceptor fired', 'color: blue', {
+      'config.baseURL': config.baseURL,
+      'defaults.baseURL': apiClient.defaults.baseURL,
+      'config.url': config.url,
+      'window.protocol': typeof window !== 'undefined' ? window.location?.protocol : 'n/a'
+    });
+    // #endregion
     if (typeof window === 'undefined') return config;
     if (window.location?.protocol !== 'https:') return config;
     const base = (config.baseURL ?? apiClient.defaults.baseURL) as string | undefined;
     if (typeof base === 'string' && base.startsWith('http://')) {
-      console.warn('[API Client] Fixing HTTP to HTTPS in request:', base);
+      console.warn('%c[DEBUG] FIXING http to https:', 'color: red; font-weight: bold', base);
       config.baseURL = base.replace(/^http:\/\//i, 'https://');
     }
+    // #region agent log – Hypothesis C: Log after fix
+    console.log('%c[DEBUG] Interceptor result', 'color: green', {
+      'final config.baseURL': config.baseURL,
+      'final config.url': config.url
+    });
+    // #endregion
     return config;
   },
   (error) => Promise.reject(error)
