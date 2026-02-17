@@ -46,37 +46,58 @@ async def _sync_one_user(user: dict, days_back: int, year: Optional[int], includ
             year=year,
             include_all=include_all,
         )
+    # DIAGNOSTIC: Log how many invoice emails were found
+    print(f"[SYNC DIAG] User {user['id']} ({user['email']}): Found {len(invoice_emails)} invoice emails from email service")
+    
     invoices_added = 0
     duplicates_skipped = 0
-    for invoice_data in invoice_emails:
-        existing = await db.fetch_one(
-            """SELECT id FROM invoices 
-               WHERE user_id = ? AND sender_email = ? AND received_date = ?""",
-            (user["id"], invoice_data["sender_email"], invoice_data["received_date"])
-        )
-        if existing:
-            duplicates_skipped += 1
-            continue
-        category = categorizer.categorize(
-            invoice_data["subject"],
-            invoice_data.get("email_body", "")
-        )
-        invoice_id = await db.execute(
-            """INSERT INTO invoices 
-               (user_id, sender_email, sender_name, subject, received_date, 
-                file_url, category, is_private)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                user["id"],
-                invoice_data["sender_email"],
-                invoice_data["sender_name"],
-                invoice_data["subject"],
-                invoice_data["received_date"],
-                invoice_data.get("invoice_url"),
-                category,
-                False
+    processing_errors = 0
+    
+    for idx, invoice_data in enumerate(invoice_emails):
+        try:
+            # DIAGNOSTIC: Log progress every 100 invoices
+            if (idx + 1) % 100 == 0:
+                print(f"[SYNC DIAG] Processing invoice {idx + 1}/{len(invoice_emails)}: added={invoices_added}, skipped={duplicates_skipped}, errors={processing_errors}")
+            
+            existing = await db.fetch_one(
+                """SELECT id FROM invoices 
+                   WHERE user_id = ? AND sender_email = ? AND received_date = ?""",
+                (user["id"], invoice_data["sender_email"], invoice_data["received_date"])
             )
-        )
+            if existing:
+                duplicates_skipped += 1
+                continue
+            
+            category = categorizer.categorize(
+                invoice_data["subject"],
+                invoice_data.get("email_body", "")
+            )
+            
+            # DIAGNOSTIC: Log before insert
+            if idx < 5:  # Log first 5 inserts for debugging
+                print(f"[SYNC DIAG] Inserting invoice: sender={invoice_data.get('sender_email')}, date={invoice_data.get('received_date')}, subject={invoice_data.get('subject', '')[:50]}")
+            
+            invoice_id = await db.execute(
+                """INSERT INTO invoices 
+                   (user_id, sender_email, sender_name, subject, received_date, 
+                    file_url, category, is_private)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    user["id"],
+                    invoice_data["sender_email"],
+                    invoice_data["sender_name"],
+                    invoice_data["subject"],
+                    invoice_data["received_date"],
+                    invoice_data.get("invoice_url"),
+                    category,
+                    False
+                )
+            )
+            
+            # DIAGNOSTIC: Verify insert succeeded
+            if idx < 5:
+                verify = await db.fetch_one("SELECT id FROM invoices WHERE id = ?", (invoice_id,))
+                print(f"[SYNC DIAG] Insert verified: invoice_id={invoice_id}, exists={verify is not None}")
         for attachment in invoice_data.get("pdf_attachments", []):
             file_path = email_service.save_attachment(
                 attachment["content"],
@@ -105,7 +126,25 @@ async def _sync_one_user(user: dict, days_back: int, year: Optional[int], includ
                        VALUES (?, ?, ?, ?)""",
                     (invoice_id, attachment["filename"], len(attachment["content"]), "application/pdf")
                 )
-        invoices_added += 1
+            invoices_added += 1
+        except Exception as e:
+            processing_errors += 1
+            print(f"[SYNC DIAG] ERROR processing invoice {idx + 1}: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            continue
+    
+    # DIAGNOSTIC: Final summary for this user
+    print(f"[SYNC DIAG] User {user['id']} COMPLETE: processed={len(invoice_emails)}, added={invoices_added}, skipped={duplicates_skipped}, errors={processing_errors}")
+    
+    # DIAGNOSTIC: Verify invoices were actually saved
+    saved_count = await db.fetch_one(
+        "SELECT COUNT(*) as count FROM invoices WHERE user_id = ?",
+        (user["id"],)
+    )
+    total_saved = saved_count["count"] if saved_count else 0
+    print(f"[SYNC DIAG] User {user['id']} total invoices in DB after sync: {total_saved}")
+    
     if not use_gmail_api:
         email_service.disconnect()
     return invoices_added, duplicates_skipped
@@ -133,12 +172,23 @@ async def sync_invoices(
                 detail="No mailboxes connected. Please connect at least one mailbox first."
             )
         
+        # DIAGNOSTIC: Check database state before sync
+        before_count = await db.fetch_one("SELECT COUNT(*) as count FROM invoices", ())
+        before_total = before_count["count"] if before_count else 0
+        print(f"[SYNC DIAG] Database state BEFORE sync: {before_total} total invoices")
+        
         total_added = 0
         total_skipped = 0
         for user in users:
             added, skipped = await _sync_one_user(dict(user), days_back, year, include_all)
             total_added += added
             total_skipped += skipped
+        
+        # DIAGNOSTIC: Check database state after sync
+        after_count = await db.fetch_one("SELECT COUNT(*) as count FROM invoices", ())
+        after_total = after_count["count"] if after_count else 0
+        print(f"[SYNC DIAG] Database state AFTER sync: {after_total} total invoices (was {before_total}, added {after_total - before_total})")
+        print(f"[SYNC DIAG] Sync reported: added={total_added}, skipped={total_skipped}")
         
         return SyncResponse(
             success=True,

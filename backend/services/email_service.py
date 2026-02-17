@@ -111,14 +111,20 @@ class EmailService:
             skipped = 0
             for i in range(0, len(email_ids), BATCH_SIZE):
                 batch = email_ids[i : i + BATCH_SIZE]
-                for invoice_data in self._fetch_and_process_batch(batch, include_all=include_all):
+                batch_results = self._fetch_and_process_batch(batch, include_all=include_all)
+                for invoice_data in batch_results:
                     if invoice_data:
                         invoices.append(invoice_data)
                         processed += 1
                     else:
                         skipped += 1
+                
+                # DIAGNOSTIC: Log progress every 10 batches
+                if (i // BATCH_SIZE + 1) % 10 == 0:
+                    print(f"[EMAIL SERVICE] Batch progress: {i + len(batch)}/{len(email_ids)} emails processed, {len(invoices)} invoices extracted")
             
             print(f"Processed: {processed}, Skipped: {skipped}, Total invoices: {len(invoices)}")
+            print(f"[EMAIL SERVICE DIAG] Returning {len(invoices)} invoice dictionaries to sync function")
             
         except Exception as e:
             print(f"Error searching invoices: {e}")
