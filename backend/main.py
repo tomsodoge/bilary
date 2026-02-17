@@ -27,13 +27,39 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
+# Configure CORS with dynamic origin checking
+@app.middleware("http")
+async def cors_middleware(request, call_next):
+    """Custom CORS middleware to allow Vercel preview URLs and configured origins"""
+    origin = request.headers.get("origin")
+    response = await call_next(request)
+    
+    # Check if origin is allowed
+    allowed = False
+    if origin:
+        # Check exact match from settings
+        if origin in settings.CORS_ORIGINS:
+            allowed = True
+        # Allow all *.vercel.app domains (for preview deployments)
+        elif origin.endswith(".vercel.app") and origin.startswith("https://"):
+            allowed = True
+    
+    if allowed:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response
+
+# Fallback CORS middleware for preflight requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS + ["https://*.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app"
 )
 
 # Mount routers

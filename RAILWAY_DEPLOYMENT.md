@@ -137,8 +137,21 @@ Die Seite läuft auf HTTPS, der Request geht aber an `http://...` → Browser bl
 - Wenn trotzdem ein Timeout auftritt: Railway-Standard-Request-Limits prüfen (ggf. Plan anpassen) oder einen kürzeren Zeitraum synchen (z. B. pro Monat).
 
 ### CORS Errors
-- Stelle sicher, dass `CORS_ORIGINS` deine Vercel-URL enthält
-- Prüfe, dass `FRONTEND_URL` korrekt gesetzt ist
+
+**Symptom:** `No 'Access-Control-Allow-Origin' header is present`
+
+**Ursache:** Vercel generiert bei Preview-Deployments immer neue URLs (`bilary-xyz123.vercel.app`), die nicht in `CORS_ORIGINS` stehen.
+
+**Lösung:** Das Backend erlaubt jetzt automatisch **alle** `*.vercel.app` Domains. 
+
+Stelle trotzdem sicher, dass in Railway die Production-URL gesetzt ist:
+
+**Railway → Variables → `CORS_ORIGINS`:**
+```
+https://bilary.vercel.app,http://localhost:5173
+```
+
+Nach Änderung: **Service neu starten** (⋮ → Restart)
 
 ### Database/Storage Issues
 - Railway bietet persistenten Storage im `/app` Verzeichnis
