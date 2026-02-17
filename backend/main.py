@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from config import settings
 from database.db import db
@@ -61,6 +62,11 @@ app.add_middleware(
     allow_headers=["*"],
     allow_origin_regex=r"https://.*\.vercel\.app"
 )
+
+# Trust proxy headers (X-Forwarded-Proto, X-Forwarded-For) so FastAPI knows
+# the original request was HTTPS. Without this, redirect_slashes generates
+# http:// redirect URLs behind Railway's reverse proxy, causing Mixed Content.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 # Mount routers
 app.include_router(auth.router)
