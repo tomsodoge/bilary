@@ -266,10 +266,25 @@ class EmailService:
                     # Check for URLs in text/html parts
                     elif part.get_content_type() in ["text/plain", "text/html"]:
                         try:
-                            body = part.get_payload(decode=True).decode()
-                            urls = self._extract_invoice_urls(body)
-                            if urls and not invoice_url:
-                                invoice_url = urls[0]
+                            payload = part.get_payload(decode=True)
+                            if payload:
+                                # Handle encoding errors gracefully
+                                try:
+                                    body = payload.decode('utf-8')
+                                except (UnicodeDecodeError, LookupError):
+                                    # Try common encodings, fallback to latin-1 (accepts any byte)
+                                    for encoding in ['latin-1', 'iso-8859-1', 'cp1252']:
+                                        try:
+                                            body = payload.decode(encoding)
+                                            break
+                                        except (UnicodeDecodeError, LookupError):
+                                            continue
+                                    else:
+                                        # Last resort: replace errors
+                                        body = payload.decode('utf-8', errors='replace')
+                                urls = self._extract_invoice_urls(body)
+                                if urls and not invoice_url:
+                                    invoice_url = urls[0]
                         except Exception:
                             pass
             
@@ -355,24 +370,57 @@ class EmailService:
                 print(f"[EMAIL PROCESS] Email #{self._process_count} EXCLUDED")
             return None
         except Exception as e:
-            print(f"Error processing message: {e}")
+            # Log error but don't crash - return None to skip this email
+            error_msg = str(e)
+            if "unknown-8bit" in error_msg.lower() or "encoding" in error_msg.lower():
+                # Only log encoding errors occasionally to avoid spam
+                if self._process_count % 100 == 0:
+                    print(f"[EMAIL PROCESS] Encoding error (email #{self._process_count}): {type(e).__name__}: {error_msg[:100]}")
+            else:
+                # Log other errors for first few occurrences
+                if self._process_count <= 10:
+                    print(f"[EMAIL PROCESS] Error processing email #{self._process_count}: {type(e).__name__}: {error_msg[:100]}")
             return None
 
     def _decode_header(self, header: str) -> str:
-        """Decode email header"""
+        """Decode email header with robust encoding handling"""
         if not header:
             return ""
         
-        decoded_parts = decode_header(header)
-        decoded_string = ""
-        
-        for part, encoding in decoded_parts:
-            if isinstance(part, bytes):
-                decoded_string += part.decode(encoding or "utf-8", errors="ignore")
-            else:
-                decoded_string += part
-        
-        return decoded_string
+        try:
+            decoded_parts = decode_header(header)
+            decoded_string = ""
+            
+            for part, encoding in decoded_parts:
+                if isinstance(part, bytes):
+                    # Handle unknown-8bit and other problematic encodings
+                    if encoding and encoding.lower() in ['unknown-8bit', '8bit']:
+                        # Try common encodings for 8-bit data
+                        for fallback_encoding in ['latin-1', 'iso-8859-1', 'cp1252', 'utf-8']:
+                            try:
+                                decoded_string += part.decode(fallback_encoding, errors='replace')
+                                break
+                            except (UnicodeDecodeError, LookupError):
+                                continue
+                        else:
+                            # If all fail, use replace to avoid crashing
+                            decoded_string += part.decode('utf-8', errors='replace')
+                    else:
+                        # Normal encoding handling
+                        try:
+                            decoded_string += part.decode(encoding or "utf-8", errors="replace")
+                        except (UnicodeDecodeError, LookupError):
+                            # Fallback if specified encoding fails
+                            decoded_string += part.decode('utf-8', errors='replace')
+                else:
+                    decoded_string += part
+            
+            return decoded_string
+        except Exception as e:
+            # If header decoding completely fails, return empty string
+            if self._process_count <= 10:  # Only log first few errors
+                print(f"[EMAIL PROCESS] Warning: Header decode failed: {type(e).__name__}: {str(e)[:100]}")
+            return ""
     
     def _parse_sender(self, from_header: str) -> Tuple[str, str]:
         """Parse sender email and name from From header"""
@@ -462,18 +510,43 @@ class EmailService:
         """Extract email body text"""
         body = ""
         
+        def safe_decode(payload_bytes):
+            """Safely decode bytes with multiple encoding fallbacks"""
+            if not payload_bytes:
+                return ""
+            try:
+                return payload_bytes.decode('utf-8')
+            except (UnicodeDecodeError, LookupError):
+                # Try common encodings
+                for encoding in ['latin-1', 'iso-8859-1', 'cp1252', 'windows-1252']:
+                    try:
+                        return payload_bytes.decode(encoding)
+                    except (UnicodeDecodeError, LookupError):
+                        continue
+                # Last resort: replace errors
+                return payload_bytes.decode('utf-8', errors='replace')
+        
         if message.is_multipart():
             for part in message.walk():
                 if part.get_content_type() == "text/plain":
                     try:
-                        body = part.get_payload(decode=True).decode()
-                        break
-                    except Exception:
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            body = safe_decode(payload)
+                            break
+                    except Exception as e:
+                        # Log but don't fail - skip this part
+                        if self._process_count <= 10:  # Only log first few errors
+                            print(f"[EMAIL PROCESS] Warning: Could not decode part: {type(e).__name__}: {str(e)[:100]}")
                         pass
         else:
             try:
-                body = message.get_payload(decode=True).decode()
-            except Exception:
+                payload = message.get_payload(decode=True)
+                if payload:
+                    body = safe_decode(payload)
+            except Exception as e:
+                if self._process_count <= 10:  # Only log first few errors
+                    print(f"[EMAIL PROCESS] Warning: Could not decode message body: {type(e).__name__}: {str(e)[:100]}")
                 pass
         
         return body
