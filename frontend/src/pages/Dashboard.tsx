@@ -22,7 +22,7 @@ const Dashboard: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [syncProgress, setSyncProgress] = useState<string>('');
-  const [syncYear, setSyncYear] = useState<number>(new Date().getFullYear());
+  const [syncYear, setSyncYear] = useState<number | ''>(''); // Start with empty selection
 
 
   // Redirect to connect page if not connected
@@ -33,13 +33,17 @@ const Dashboard: React.FC = () => {
   }, [isConnected, status, navigate]);
 
   const handleYearSync = async () => {
+    if (syncYear === '') {
+      setSyncMessage('Bitte wähle ein Jahr aus');
+      return;
+    }
     setSyncing(true);
     setSyncMessage('');
     setSyncProgress(`Syncing year ${syncYear}...`);
     
     try {
       const startTime = Date.now();
-      const result = await syncInvoices({ year: syncYear, includeAll: false });
+      const result = await syncInvoices({ year: syncYear as number, includeAll: false });
       const duration = Math.round((Date.now() - startTime) / 1000);
       
       setSyncMessage(`${result.message} (took ${duration}s)`);
@@ -83,10 +87,11 @@ const Dashboard: React.FC = () => {
             <select
               id="sync-year-select"
               value={syncYear}
-              onChange={(e) => setSyncYear(Number(e.target.value))}
+              onChange={(e) => setSyncYear(e.target.value === '' ? '' : Number(e.target.value))}
               disabled={syncing || loading}
               style={{ marginRight: '0.75rem', padding: '0.5rem', fontSize: '1rem' }}
             >
+              <option value="">-- Jahr wählen --</option>
               {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
@@ -94,10 +99,10 @@ const Dashboard: React.FC = () => {
             <button
               onClick={handleYearSync}
               className="btn btn-primary"
-              disabled={syncing || loading}
+              disabled={syncing || loading || syncYear === ''}
               title={syncProgress || undefined}
             >
-              {syncing ? (syncProgress || 'Syncing...') : `Sync ${syncYear}`}
+              {syncing ? (syncProgress || 'Syncing...') : syncYear !== '' ? `Sync ${syncYear}` : 'Sync'}
             </button>
           </div>
           <button

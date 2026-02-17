@@ -131,16 +131,6 @@ const Connect: React.FC = () => {
     <div className="page-container">
       <div className="connect-page">
         <div className="connect-card">
-          <div className="connect-card-header">
-            <button
-              type="button"
-              className="back-button"
-              onClick={() => navigate(accounts.length > 0 ? '/dashboard' : '/')}
-              aria-label="Zurück"
-            >
-              ← Zurück
-            </button>
-          </div>
           <h1>{accounts.length > 0 ? 'Weiteres Postfach hinzufügen' : 'E-Mail verbinden'}</h1>
           <p className="subtitle">
             Gmail und andere IMAP-Postfächer verbinden, um Rechnungen zu importieren.
@@ -243,17 +233,8 @@ const Connect: React.FC = () => {
 
             <div className="connect-actions">
               <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
-                {loading ? 'Verbinde…' : accounts.length > 0 ? 'Postfach hinzufügen' : 'Postfach verbinden'}
+                {loading ? 'Verbinde…' : 'Postfach bestätigen'}
               </button>
-              {accounts.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => navigate('/dashboard')}
-                >
-                  Zum Dashboard
-                </button>
-              )}
             </div>
           </form>
 
