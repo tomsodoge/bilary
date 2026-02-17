@@ -113,10 +113,11 @@ class EmailService:
             
             email_ids = messages[0].split()
             print(f"Found {len(email_ids)} emails in date range")
-            print(f"[EMAIL SERVICE DIAG] Starting batch processing: include_all={include_all}, BATCH_SIZE=30")
             
             # Process emails in batches (fewer round-trips = faster, especially for full year)
-            BATCH_SIZE = 30
+            # Increased from 30 to 100 for better performance (reduces IMAP round-trips by ~70%)
+            BATCH_SIZE = 100
+            print(f"[EMAIL SERVICE DIAG] Starting batch processing: include_all={include_all}, BATCH_SIZE={BATCH_SIZE}")
             processed = 0
             skipped = 0
             total_batches = (len(email_ids) + BATCH_SIZE - 1) // BATCH_SIZE
