@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Query
 from typing import Optional, List
 from datetime import datetime
+from calendar import monthrange
 from database.models import Invoice, InvoiceUpdate, SyncResponse
 from database.db import db
 from services.crypto_service import crypto_service
@@ -13,7 +14,8 @@ from pathlib import Path
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 
 
-async def _sync_one_user(user: dict, days_back: int, year: Optional[int], include_all: bool):
+async def _sync_one_user(user: dict, days_back: int, year: Optional[int], include_all: bool, 
+                         start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
     """Sync invoices for a single user (IMAP or Gmail OAuth)."""
     invoice_emails = []
     use_gmail_api = user.get("encrypted_refresh_token")
@@ -27,6 +29,8 @@ async def _sync_one_user(user: dict, days_back: int, year: Optional[int], includ
             access_token,
             days_back=days_back,
             year=year,
+            start_date=start_date,
+            end_date=end_date,
             include_all=include_all,
         )
     else:
@@ -44,6 +48,8 @@ async def _sync_one_user(user: dict, days_back: int, year: Optional[int], includ
         invoice_emails = email_service.search_invoices(
             days_back=days_back,
             year=year,
+            start_date=start_date,
+            end_date=end_date,
             include_all=include_all,
         )
     # DIAGNOSTIC: Log how many invoice emails were found
@@ -180,10 +186,58 @@ async def sync_invoices(
         
         total_added = 0
         total_skipped = 0
-        for user in users:
-            added, skipped = await _sync_one_user(dict(user), days_back, year, include_all)
-            total_added += added
-            total_skipped += skipped
+        
+        # MONTH-BY-MONTH SYNC: If year is provided, split into months and process sequentially
+        if year:
+            
+            months = []
+            for month in range(1, 13):
+                start = datetime(year, month, 1)
+                # Get last day of month (handles leap years)
+                last_day = monthrange(year, month)[1]
+                end = datetime(year, month, last_day)
+                months.append((month, start, end))
+            
+            print(f"[SYNC MONTHLY] Processing year {year} in {len(months)} months")
+            
+            for month_num, month_start, month_end in months:
+                print(f"[SYNC MONTHLY] Processing month {year}-{month_num:02d} ({month_start.strftime('%Y-%m-%d')} to {month_end.strftime('%Y-%m-%d')})")
+                
+                month_added = 0
+                month_skipped = 0
+                
+                for user in users:
+                    try:
+                        added, skipped = await _sync_one_user(
+                            dict(user), 
+                            days_back=days_back, 
+                            year=None,  # Don't pass year when using start_date/end_date
+                            include_all=include_all,
+                            start_date=month_start,
+                            end_date=month_end
+                        )
+                        month_added += added
+                        month_skipped += skipped
+                    except Exception as e:
+                        print(f"[SYNC MONTHLY] ERROR processing month {year}-{month_num:02d} for user {user['id']}: {type(e).__name__}: {str(e)}")
+                        # Continue with next user/month even if one fails
+                        continue
+                
+                total_added += month_added
+                total_skipped += month_skipped
+                
+                # DIAGNOSTIC: Log progress after each month
+                after_month_count = await db.fetch_one("SELECT COUNT(*) as count FROM invoices", ())
+                after_month_total = after_month_count["count"] if after_month_count else 0
+                print(f"[SYNC MONTHLY] Month {year}-{month_num:02d} COMPLETE: added={month_added}, skipped={month_skipped}, total invoices in DB: {after_month_total}")
+            
+            print(f"[SYNC MONTHLY] Year {year} sync COMPLETE: total added={total_added}, total skipped={total_skipped}")
+        else:
+            # Original behavior: sync without month splitting
+            for user in users:
+                added, skipped = await _sync_one_user(dict(user), days_back, year, include_all)
+                total_added += added
+                total_skipped += skipped
         
         # DIAGNOSTIC: Check database state after sync
         after_count = await db.fetch_one("SELECT COUNT(*) as count FROM invoices", ())
