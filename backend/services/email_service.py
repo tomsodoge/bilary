@@ -105,21 +105,18 @@ class EmailService:
             email_ids = messages[0].split()
             print(f"Found {len(email_ids)} emails in date range")
             
-            # Process each email
+            # Process emails in batches (fewer round-trips = faster, especially for full year)
+            BATCH_SIZE = 30
             processed = 0
             skipped = 0
-            for email_id in email_ids:
-                try:
-                    invoice_data = self._process_email(email_id, include_all=include_all)
+            for i in range(0, len(email_ids), BATCH_SIZE):
+                batch = email_ids[i : i + BATCH_SIZE]
+                for invoice_data in self._fetch_and_process_batch(batch, include_all=include_all):
                     if invoice_data:
                         invoices.append(invoice_data)
                         processed += 1
                     else:
                         skipped += 1
-                except Exception as e:
-                    print(f"Error processing email {email_id}: {e}")
-                    skipped += 1
-                    continue
             
             print(f"Processed: {processed}, Skipped: {skipped}, Total invoices: {len(invoices)}")
             
@@ -130,6 +127,38 @@ class EmailService:
         
         return invoices
     
+    def _fetch_and_process_batch(
+        self, email_ids: List[bytes], include_all: bool = False
+    ) -> List[Optional[Dict]]:
+        """Fetch a batch of emails in one IMAP round-trip and process each. Returns list of invoice_data or None."""
+        if not email_ids:
+            return []
+        try:
+            sequence_set = b",".join(email_ids)
+            status, msg_data = self.connection.fetch(sequence_set, "(RFC822)")
+            if status != "OK":
+                return [None] * len(email_ids)
+            results = []
+            for item in msg_data:
+                if isinstance(item, tuple) and len(item) == 2:
+                    try:
+                        raw = item[1]
+                        if isinstance(raw, bytes):
+                            message = email.message_from_bytes(raw)
+                            results.append(self._process_parsed_message(message, include_all=include_all))
+                        else:
+                            results.append(None)
+                    except Exception as e:
+                        print(f"Error processing batch item: {e}")
+                        results.append(None)
+            # Pad with None if server returned fewer (e.g. deleted messages)
+            while len(results) < len(email_ids):
+                results.append(None)
+            return results[: len(email_ids)]
+        except Exception as e:
+            print(f"Error fetching batch: {e}")
+            return [None] * len(email_ids)
+
     def _process_email(self, email_id: bytes, include_all: bool = False) -> Optional[Dict]:
         """Process a single email (IMAP) and extract invoice data."""
         try:

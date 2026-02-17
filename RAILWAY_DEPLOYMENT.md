@@ -88,6 +88,10 @@ Ohne dieses Setting erkennt Railway das Python-Projekt nicht, weil sowohl `backe
 - Nach Änderung der Variable: **Redeploy** auf Vercel auslösen (VITE_* wird beim Build eingebettet).
 - Prüfe im Browser (DevTools → Network), ob Requests zu `https://...railway.app` gehen.
 
+### Zeitüberschreitung beim Sync (z. B. Jahr 2025)
+- Der Sync nutzt im Frontend ein Timeout von 15 Minuten; das Backend lädt E-Mails in Batches (schneller).
+- Wenn trotzdem ein Timeout auftritt: Railway-Standard-Request-Limits prüfen (ggf. Plan anpassen) oder einen kürzeren Zeitraum synchen (z. B. pro Monat).
+
 ### CORS Errors
 - Stelle sicher, dass `CORS_ORIGINS` deine Vercel-URL enthält
 - Prüfe, dass `FRONTEND_URL` korrekt gesetzt ist

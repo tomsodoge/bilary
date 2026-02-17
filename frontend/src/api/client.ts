@@ -88,8 +88,8 @@ export const authAPI = {
   },
 };
 
-// Sync can take a long time (many emails) – use 5 min timeout
-const SYNC_TIMEOUT_MS = 5 * 60 * 1000;
+// Sync can take a long time (many emails, especially full year) – use 15 min timeout
+const SYNC_TIMEOUT_MS = 15 * 60 * 1000;
 
 // Invoices API
 export const invoicesAPI = {
