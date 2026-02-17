@@ -98,34 +98,35 @@ async def _sync_one_user(user: dict, days_back: int, year: Optional[int], includ
             if idx < 5:
                 verify = await db.fetch_one("SELECT id FROM invoices WHERE id = ?", (invoice_id,))
                 print(f"[SYNC DIAG] Insert verified: invoice_id={invoice_id}, exists={verify is not None}")
-        for attachment in invoice_data.get("pdf_attachments", []):
-            file_path = email_service.save_attachment(
-                attachment["content"],
-                attachment["filename"],
-                user["id"],
-                invoice_id
-            )
-            if file_path:
-                await db.execute(
-                    "UPDATE invoices SET file_path = ? WHERE id = ?",
-                    (file_path, invoice_id)
+            
+            for attachment in invoice_data.get("pdf_attachments", []):
+                file_path = email_service.save_attachment(
+                    attachment["content"],
+                    attachment["filename"],
+                    user["id"],
+                    invoice_id
                 )
-                pdf_text = pdf_service.extract_first_page(file_path)
-                if pdf_text:
-                    better_category = categorizer.categorize(
-                        invoice_data["subject"],
-                        pdf_text[:1000]
+                if file_path:
+                    await db.execute(
+                        "UPDATE invoices SET file_path = ? WHERE id = ?",
+                        (file_path, invoice_id)
                     )
-                    if better_category != "Other":
-                        await db.execute(
-                            "UPDATE invoices SET category = ? WHERE id = ?",
-                            (better_category, invoice_id)
+                    pdf_text = pdf_service.extract_first_page(file_path)
+                    if pdf_text:
+                        better_category = categorizer.categorize(
+                            invoice_data["subject"],
+                            pdf_text[:1000]
                         )
-                await db.execute(
-                    """INSERT INTO attachments (invoice_id, filename, file_size, mime_type)
-                       VALUES (?, ?, ?, ?)""",
-                    (invoice_id, attachment["filename"], len(attachment["content"]), "application/pdf")
-                )
+                        if better_category != "Other":
+                            await db.execute(
+                                "UPDATE invoices SET category = ? WHERE id = ?",
+                                (better_category, invoice_id)
+                            )
+                    await db.execute(
+                        """INSERT INTO attachments (invoice_id, filename, file_size, mime_type)
+                           VALUES (?, ?, ?, ?)""",
+                        (invoice_id, attachment["filename"], len(attachment["content"]), "application/pdf")
+                    )
             invoices_added += 1
         except Exception as e:
             processing_errors += 1
