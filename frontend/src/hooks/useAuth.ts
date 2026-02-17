@@ -50,6 +50,13 @@ export const useAuth = () => {
 
   useEffect(() => {
     checkStatus();
+
+    // Fallback: if backend doesn't respond, stop loading after 15s so the page is usable
+    const fallback = setTimeout(() => {
+      setLoading(false);
+      setStatus((prev) => prev ?? { connected: false, message: 'Backend nicht erreichbar' });
+    }, 15_000);
+    return () => clearTimeout(fallback);
   }, []);
 
   return {

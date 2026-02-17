@@ -83,6 +83,32 @@ Ohne dieses Setting erkennt Railway das Python-Projekt nicht, weil sowohl `backe
 - Prüfe, ob `PORT` Environment Variable gesetzt ist (Railway setzt diese automatisch)
 - Stelle sicher, dass Root Directory auf `backend` gesetzt ist
 
+### Backend reagiert nicht / Requests hängen
+
+**Symptome:** Frontend zeigt „Verbindung zum Server fehlgeschlagen", Requests an Railway hängen.
+
+**Lösungen:**
+
+1. **Railway Service neu starten**
+   - Railway Dashboard → dein Service → **⋮** (drei Punkte) → **Restart**
+   - Warte 30–60 Sekunden, bis der Service wieder läuft
+
+2. **Neues Deployment auslösen**
+   - Änderung committen (z. B. Leerzeile in `backend/main.py` hinzufügen)
+   - Push zu GitHub: Railway deployt automatisch neu
+   - Oder: Railway Dashboard → **Deployments** → **Deploy Now**
+
+3. **Logs prüfen**
+   - Railway Dashboard → **Deployments** → letztes Deployment → **View Logs**
+   - Nach Fehlern suchen: z. B. fehlende Environment-Variablen, Database-Init-Fehler
+
+4. **Health-Check testen**
+   ```bash
+   curl https://dein-backend.up.railway.app/health
+   ```
+   - Sollte `{"status":"healthy"}` zurückgeben
+   - Reagiert nicht: Service ist down → Logs/Restart nötig
+
 ### Mixed Content: "requested an insecure XMLHttpRequest endpoint 'http://...'"
 Die Seite läuft auf HTTPS, der Request geht aber an `http://...` → Browser blockiert.
 

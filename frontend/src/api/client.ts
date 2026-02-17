@@ -79,7 +79,10 @@ export const authAPI = {
   },
 
   getStatus: async () => {
-    const response = await apiClient.get<ConnectionStatus>('/api/auth/status');
+    // Short timeout so the app never hangs if the backend is unreachable (e.g. on first load)
+    const response = await apiClient.get<ConnectionStatus>('/api/auth/status', {
+      timeout: 12_000, // 12s
+    });
     return response.data;
   },
 

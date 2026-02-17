@@ -22,10 +22,7 @@ const Dashboard: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [syncProgress, setSyncProgress] = useState<string>('');
-  const [showSyncOptions, setShowSyncOptions] = useState(false);
   const [syncYear, setSyncYear] = useState<number>(new Date().getFullYear());
-  const [syncDays, setSyncDays] = useState<number>(30);
-  const [includeAll, setIncludeAll] = useState<boolean>(false);
 
 
   // Redirect to connect page if not connected
@@ -35,28 +32,20 @@ const Dashboard: React.FC = () => {
     }
   }, [isConnected, status, navigate]);
 
-  const handleSync = async (useYear: boolean = false) => {
+  const handleYearSync = async () => {
     setSyncing(true);
     setSyncMessage('');
-    setSyncProgress('Connecting to email server...');
+    setSyncProgress(`Syncing year ${syncYear}...`);
     
     try {
-      const options = useYear 
-        ? { year: syncYear, includeAll } 
-        : { daysBack: syncDays, includeAll };
-      
-      // Show progress updates
-      setSyncProgress(useYear ? `Syncing year ${syncYear}...` : `Syncing last ${syncDays} days...`);
-      
       const startTime = Date.now();
-      const result = await syncInvoices(options);
+      const result = await syncInvoices({ year: syncYear, includeAll: false });
       const duration = Math.round((Date.now() - startTime) / 1000);
       
       setSyncMessage(`${result.message} (took ${duration}s)`);
       setSyncProgress('');
-      setShowSyncOptions(false);
     } catch (err) {
-      setSyncMessage('Failed to sync invoices: ' + (err instanceof Error ? err.message : String(err)));
+      setSyncMessage('Failed to sync: ' + (err instanceof Error ? err.message : String(err)));
       setSyncProgress('');
     } finally {
       setSyncing(false);
@@ -87,14 +76,30 @@ const Dashboard: React.FC = () => {
           )}
         </div>
         <div className="header-actions">
-          <button
-            onClick={() => setShowSyncOptions(!showSyncOptions)}
-            className="btn btn-primary"
-            disabled={syncing || loading}
-            title={syncProgress || undefined}
-          >
-            {syncing ? (syncProgress || 'Syncing...') : 'Sync Invoices'}
-          </button>
+          <div className="year-sync-group">
+            <label htmlFor="sync-year-select" style={{ marginRight: '0.5rem', fontWeight: 500 }}>
+              Jahr:
+            </label>
+            <select
+              id="sync-year-select"
+              value={syncYear}
+              onChange={(e) => setSyncYear(Number(e.target.value))}
+              disabled={syncing || loading}
+              style={{ marginRight: '0.75rem', padding: '0.5rem', fontSize: '1rem' }}
+            >
+              {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleYearSync}
+              className="btn btn-primary"
+              disabled={syncing || loading}
+              title={syncProgress || undefined}
+            >
+              {syncing ? (syncProgress || 'Syncing...') : `Sync ${syncYear}`}
+            </button>
+          </div>
           <button
             onClick={() => navigate('/export')}
             className="btn btn-secondary"
@@ -104,94 +109,6 @@ const Dashboard: React.FC = () => {
           </button>
         </div>
       </header>
-
-      {showSyncOptions && (
-        <div className="sync-options-panel">
-          <h3>Sync Options</h3>
-          <div className="sync-option-group">
-            <label>
-              <input
-                type="radio"
-                name="sync-type"
-                checked={!includeAll}
-                onChange={() => setIncludeAll(false)}
-              />
-              Only emails with PDFs or invoice keywords
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="sync-type"
-                checked={includeAll}
-                onChange={() => setIncludeAll(true)}
-              />
-              All emails in date range (slower, more comprehensive)
-            </label>
-          </div>
-          
-          <div className="sync-tabs">
-            <button 
-              className="tab-btn"
-              onClick={() => document.getElementById('days-tab')?.click()}
-            >
-              Last N Days
-            </button>
-            <button 
-              className="tab-btn"
-              onClick={() => document.getElementById('year-tab')?.click()}
-            >
-              Specific Year
-            </button>
-          </div>
-
-          <div className="sync-tab-content">
-            <div id="days-panel">
-              <label>Days back:</label>
-              <input
-                type="number"
-                value={syncDays}
-                onChange={(e) => setSyncDays(Number(e.target.value))}
-                min="1"
-                max="365"
-              />
-              <button
-                onClick={() => handleSync(false)}
-                className="btn btn-primary"
-                disabled={syncing}
-              >
-                Sync Last {syncDays} Days
-              </button>
-            </div>
-
-            <div id="year-panel" style={{ marginTop: '1rem' }}>
-              <label>Year:</label>
-              <select
-                value={syncYear}
-                onChange={(e) => setSyncYear(Number(e.target.value))}
-              >
-                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => handleSync(true)}
-                className="btn btn-primary"
-                disabled={syncing}
-              >
-                Sync Year {syncYear}
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowSyncOptions(false)}
-            className="btn btn-secondary"
-            style={{ marginTop: '1rem' }}
-          >
-            Cancel
-          </button>
-        </div>
-      )}
 
       {(syncMessage || syncProgress) && (
         <div className={syncProgress ? "sync-progress" : "sync-message"}>
