@@ -172,6 +172,11 @@ async def list_invoices(
         print(f"[API LIST] Filters: sender={sender}, category={category}, is_private={is_private}, start_date={start_date}, end_date={end_date}, limit={limit}")
         # #endregion
         
+        # DIAGNOSTIC: Count total invoices in database
+        total_count = await db.fetch_one("SELECT COUNT(*) as count FROM invoices", ())
+        total_invoices = total_count["count"] if total_count else 0
+        print(f"[DIAG] Total invoices in database: {total_invoices}")
+        
         # Build query
         query = "SELECT * FROM invoices WHERE 1=1"
         params = []
@@ -185,6 +190,15 @@ async def list_invoices(
             # #region agent log
             print(f"[API LIST] No date filter provided, defaulting to last 30 days from {default_start}")
             # #endregion
+            
+            # DIAGNOSTIC: Count invoices matching default 30-day filter
+            matching_count = await db.fetch_one(
+                "SELECT COUNT(*) as count FROM invoices WHERE received_date >= ?",
+                (default_start,)
+            )
+            matching_invoices = matching_count["count"] if matching_count else 0
+            print(f"[DIAG] Invoices matching default 30-day filter (>= {default_start}): {matching_invoices}")
+            print(f"[DIAG] Invoices excluded by 30-day filter: {total_invoices - matching_invoices}")
         
         if sender:
             query += " AND sender_email = ?"
@@ -216,6 +230,18 @@ async def list_invoices(
         # #region agent log
         print(f"[API] Returning {len(invoices)} invoices (limit={limit})")
         # #endregion
+        
+        # DIAGNOSTIC: Show date range of returned invoices
+        if invoices:
+            dates = [inv["received_date"] for inv in invoices if inv.get("received_date")]
+            if dates:
+                min_date = min(dates)
+                max_date = max(dates)
+                print(f"[DIAG] Returned invoices date range: {min_date} to {max_date}")
+            print(f"[DIAG] Returned invoices count: {len(invoices)}/{limit if limit else 'unlimited'}")
+        else:
+            print(f"[DIAG] No invoices returned (query matched 0 results)")
+        
         return invoices
         
     except Exception as e:
