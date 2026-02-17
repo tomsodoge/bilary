@@ -8,6 +8,22 @@ import type {
   AccountInfo
 } from '../types/invoice';
 
+// #region agent log – Hypothesis G: Intercept the actual XHR to see what URL the browser sends
+if (typeof window !== 'undefined' && typeof XMLHttpRequest !== 'undefined') {
+  const origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...rest: unknown[]) {
+    const urlStr = typeof url === 'string' ? url : url.toString();
+    if (urlStr.includes('railway') || urlStr.includes('/api/')) {
+      console.log('%c[DEBUG-XHR] open()', 'color: magenta; font-weight: bold', method, urlStr);
+      if (urlStr.startsWith('http://')) {
+        console.trace('%c[DEBUG-XHR] HTTP REQUEST ORIGIN TRACE:', 'color: red; font-weight: bold');
+      }
+    }
+    return origOpen.call(this, method, url, ...(rest as [boolean, string?, string?]));
+  };
+}
+// #endregion
+
 // Get API base URL from environment, fallback to localhost only in development
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 
   (import.meta.env.DEV ? 'http://localhost:8000' : '');
@@ -49,13 +65,10 @@ console.log('%c[DEBUG] apiClient.defaults.baseURL:', 'color: orange', apiClient.
 
 apiClient.interceptors.request.use(
   (config) => {
-    // #region agent log – Hypothesis C: Log every request's URL construction
-    console.log('%c[DEBUG] Interceptor fired', 'color: blue', {
-      'config.baseURL': config.baseURL,
-      'defaults.baseURL': apiClient.defaults.baseURL,
-      'config.url': config.url,
-      'window.protocol': typeof window !== 'undefined' ? window.location?.protocol : 'n/a'
-    });
+    // #region agent log – Hypothesis G,H: Log FLAT strings, not objects
+    console.log('%c[DEBUG] Interceptor config.baseURL:', 'color: blue', config.baseURL);
+    console.log('%c[DEBUG] Interceptor config.url:', 'color: blue', config.url);
+    console.log('%c[DEBUG] Interceptor defaults.baseURL:', 'color: blue', apiClient.defaults.baseURL);
     // #endregion
     if (typeof window === 'undefined') return config;
     if (window.location?.protocol !== 'https:') return config;
@@ -64,11 +77,11 @@ apiClient.interceptors.request.use(
       console.warn('%c[DEBUG] FIXING http to https:', 'color: red; font-weight: bold', base);
       config.baseURL = base.replace(/^http:\/\//i, 'https://');
     }
-    // #region agent log – Hypothesis C: Log after fix
-    console.log('%c[DEBUG] Interceptor result', 'color: green', {
-      'final config.baseURL': config.baseURL,
-      'final config.url': config.url
-    });
+    // #region agent log – Hypothesis G: Log the full URL that axios WILL use
+    const finalBase = config.baseURL ?? '';
+    const finalUrl = config.url ?? '';
+    const combinedUrl = finalUrl.startsWith('http') ? finalUrl : finalBase + finalUrl;
+    console.log('%c[DEBUG] Interceptor COMBINED URL:', 'color: green; font-weight: bold', combinedUrl);
     // #endregion
     return config;
   },
