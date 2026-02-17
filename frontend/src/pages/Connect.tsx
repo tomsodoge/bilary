@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const GMAIL_IMAP = 'imap.gmail.com';
 const TONLINE_IMAP = 'secureimap.t-online.de';
 
 const Connect: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { connect, removeAccount, checkStatus, accounts, loading, error } = useAuth();
 
@@ -27,8 +26,12 @@ const Connect: React.FC = () => {
     setSuccessMessage('');
     try {
       await connect(formData.email, formData.password, formData.imapServer);
-      setSuccessMessage('Postfach verbunden.');
+      setSuccessMessage('Postfach verbunden. Weiterleitung zum Dashboard...');
       setFormData({ email: '', password: '', imapServer: GMAIL_IMAP });
+      // Redirect to dashboard after successful connection
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1500);
     } catch {
       // error from useAuth
     }
