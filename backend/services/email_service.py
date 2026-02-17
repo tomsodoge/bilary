@@ -16,6 +16,10 @@ class EmailService:
     def __init__(self):
         self.connection: Optional[imaplib.IMAP4_SSL] = None
         self.email_address: Optional[str] = None
+        # DIAGNOSTIC: Initialize processing counters
+        self._process_count = 0
+        self._process_included = 0
+        self._process_excluded = 0
     
     def connect(self, email_address: str, password: str, server: str, port: int = 993) -> bool:
         """
@@ -64,6 +68,11 @@ class EmailService:
         if not self.connection:
             raise Exception("Not connected to email server")
         
+        # DIAGNOSTIC: Reset processing counters
+        self._process_count = 0
+        self._process_included = 0
+        self._process_excluded = 0
+        
         invoices = []
         
         try:
@@ -104,27 +113,53 @@ class EmailService:
             
             email_ids = messages[0].split()
             print(f"Found {len(email_ids)} emails in date range")
+            print(f"[EMAIL SERVICE DIAG] Starting batch processing: include_all={include_all}, BATCH_SIZE=30")
             
             # Process emails in batches (fewer round-trips = faster, especially for full year)
             BATCH_SIZE = 30
             processed = 0
             skipped = 0
+            total_batches = (len(email_ids) + BATCH_SIZE - 1) // BATCH_SIZE
+            print(f"[EMAIL SERVICE DIAG] Will process {total_batches} batches")
+            
             for i in range(0, len(email_ids), BATCH_SIZE):
+                batch_num = (i // BATCH_SIZE) + 1
                 batch = email_ids[i : i + BATCH_SIZE]
-                batch_results = self._fetch_and_process_batch(batch, include_all=include_all)
-                for invoice_data in batch_results:
-                    if invoice_data:
-                        invoices.append(invoice_data)
-                        processed += 1
-                    else:
-                        skipped += 1
                 
-                # DIAGNOSTIC: Log progress every 10 batches
-                if (i // BATCH_SIZE + 1) % 10 == 0:
-                    print(f"[EMAIL SERVICE] Batch progress: {i + len(batch)}/{len(email_ids)} emails processed, {len(invoices)} invoices extracted")
+                # DIAGNOSTIC: Log every batch (for first 5 batches) or every 50 batches
+                if batch_num <= 5 or batch_num % 50 == 0:
+                    print(f"[EMAIL SERVICE DIAG] Processing batch {batch_num}/{total_batches} ({len(batch)} emails)")
+                
+                try:
+                    batch_results = self._fetch_and_process_batch(batch, include_all=include_all)
+                    batch_invoices = sum(1 for r in batch_results if r is not None)
+                    
+                    for invoice_data in batch_results:
+                        if invoice_data:
+                            invoices.append(invoice_data)
+                            processed += 1
+                        else:
+                            skipped += 1
+                    
+                    # DIAGNOSTIC: Log batch results
+                    if batch_num <= 5 or batch_num % 50 == 0:
+                        print(f"[EMAIL SERVICE DIAG] Batch {batch_num} complete: {batch_invoices}/{len(batch)} became invoices, total invoices so far: {len(invoices)}")
+                except Exception as e:
+                    print(f"[EMAIL SERVICE DIAG] ERROR in batch {batch_num}: {type(e).__name__}: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    skipped += len(batch)
             
             print(f"Processed: {processed}, Skipped: {skipped}, Total invoices: {len(invoices)}")
             print(f"[EMAIL SERVICE DIAG] Returning {len(invoices)} invoice dictionaries to sync function")
+            
+            # DIAGNOSTIC: Summary of email processing
+            if hasattr(self, '_process_count'):
+                print(f"[EMAIL SERVICE DIAG] Email processing summary: total={self._process_count}, included={self._process_included}, excluded={self._process_excluded}")
+                # Reset counters for next sync
+                self._process_count = 0
+                self._process_included = 0
+                self._process_excluded = 0
             
         except Exception as e:
             print(f"Error searching invoices: {e}")
@@ -188,6 +223,10 @@ class EmailService:
 
     def _process_parsed_message(self, message, include_all: bool = False) -> Optional[Dict]:
         """Extract invoice data from a parsed email.message.Message."""
+        # DIAGNOSTIC: Track processing stats
+        self._process_count += 1
+        should_log_sample = self._process_count <= 5 or self._process_count % 1000 == 0
+        
         try:
             subject = self._decode_header(message["Subject"])
             from_header = self._decode_header(message["From"])
@@ -198,6 +237,9 @@ class EmailService:
             
             # Parse date
             received_date = self._parse_date(date_str)
+            
+            if should_log_sample:
+                print(f"[EMAIL PROCESS] Email #{self._process_count}: subject='{subject[:50]}', sender={sender_email}, include_all={include_all}")
             
             # Check if email contains invoice keywords (check both subject and body)
             subject_lower = subject.lower() if subject else ""
@@ -285,7 +327,17 @@ class EmailService:
                 or (include_all and not is_likely_newsletter_or_spam)
             )
             
+            if should_log_sample:
+                print(f"[EMAIL PROCESS] Email #{self._process_count} decision: "
+                      f"has_pdf={len(pdf_attachments)>0}, has_keyword={has_invoice_keyword}, "
+                      f"has_amount={has_amount}, has_invoice_number={has_invoice_number}, "
+                      f"is_spam={is_likely_newsletter_or_spam}, include_all={include_all}, "
+                      f"should_include={should_include}")
+            
             if should_include:
+                self._process_included += 1
+                if should_log_sample:
+                    print(f"[EMAIL PROCESS] Email #{self._process_count} INCLUDED")
                 return {
                     "sender_email": sender_email,
                     "sender_name": sender_name,
@@ -298,6 +350,9 @@ class EmailService:
                     "has_keyword": has_invoice_keyword
                 }
             
+            self._process_excluded += 1
+            if should_log_sample:
+                print(f"[EMAIL PROCESS] Email #{self._process_count} EXCLUDED")
             return None
         except Exception as e:
             print(f"Error processing message: {e}")
