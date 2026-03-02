@@ -160,7 +160,7 @@ export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
       // #region agent log
       fetch('http://127.0.0.1:7828/ingest/acee1b00-0ae6-44f2-ad30-c6d078b5f370',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b38543'},body:JSON.stringify({sessionId:'b38543',runId:'pre-fix',hypothesisId:'H1-H3',location:'worker/process-mailbox.ts:157',message:'classifier result shape',data:{type:result.type,isInvoice:result.isInvoice,confidence:result.confidence,portalUrlsCount:result.portalUrls.length,matchedAttachmentsCount:result.matchedAttachments.length},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
-      if (!result.classified || !result.type) continue;
+      if (!result.isInvoice || result.type === 'none') continue;
 
       dedupSet.add(dedupId);
       foundCount++;
@@ -189,7 +189,7 @@ export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
 
       if (!bucket) continue;
 
-      if (result.type === 'portal_link' && result.portalUrl) {
+      if (result.type === 'portal_link' && result.portalUrls.length > 0) {
         await db
           .insert(invoiceCandidates)
           .values({
@@ -202,9 +202,9 @@ export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
             emailDate: email.date,
             type: 'portal_link',
             filename: '',
-            portalUrl: result.portalUrl,
-            confidenceScore: result.confidenceScore ?? null,
-            classificationMethod: 'heuristic',
+            portalUrl: result.portalUrls[0] ?? null,
+            confidenceScore: result.confidence ?? null,
+            classificationMethod: result.method,
             year,
           })
           .onConflictDoNothing();
@@ -252,8 +252,8 @@ export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
               mimeType: att.mimeType,
               fileSize: att.size,
               storagePath,
-              confidenceScore: result.confidenceScore ?? null,
-              classificationMethod: 'heuristic',
+              confidenceScore: result.confidence ?? null,
+              classificationMethod: result.method,
               year,
             })
             .onConflictDoNothing();
@@ -271,9 +271,9 @@ export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
             emailDate: email.date,
             type: 'portal_link',
             filename: '',
-            portalUrl: result.portalUrl ?? null,
-            confidenceScore: result.confidenceScore ?? null,
-            classificationMethod: 'heuristic',
+            portalUrl: result.portalUrls[0] ?? null,
+            confidenceScore: result.confidence ?? null,
+            classificationMethod: result.method,
             year,
           })
           .onConflictDoNothing();
@@ -282,9 +282,9 @@ export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
 
     processedCount += messages.length;
     const newNextBatchStart = nextBatchStart + batchIds.length;
-    const newCheckpoint = isGmail
-      ? { ...checkpoint, nextBatchStart: newNextBatchStart }
-      : { ...checkpoint, lastProcessedIndex: newNextBatchStart - 1 };
+    const newCheckpoint: GmailCheckpoint | ImapCheckpoint = isGmail
+      ? { ...(checkpoint as GmailCheckpoint), nextBatchStart: newNextBatchStart }
+      : { ...(checkpoint as ImapCheckpoint), lastProcessedIndex: newNextBatchStart - 1 };
     // #region agent log
     fetch('http://127.0.0.1:7828/ingest/acee1b00-0ae6-44f2-ad30-c6d078b5f370',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b38543'},body:JSON.stringify({sessionId:'b38543',runId:'pre-fix',hypothesisId:'H4',location:'worker/process-mailbox.ts:282',message:'checkpoint update shape',data:{isGmail,newNextBatchStart,checkpointPhase:(newCheckpoint as { phase?: string }).phase},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
