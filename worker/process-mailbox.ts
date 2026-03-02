@@ -35,6 +35,9 @@ interface ScanTaskRow {
 }
 
 export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
+  // #region agent log
+  fetch('http://127.0.0.1:7828/ingest/acee1b00-0ae6-44f2-ad30-c6d078b5f370',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b38543'},body:JSON.stringify({sessionId:'b38543',runId:'pre-fix',hypothesisId:'H5',location:'worker/process-mailbox.ts:38',message:'processMailboxTask entry',data:{taskId:task.id,mailboxId:task.mailboxId,scanRunId:task.scanRunId},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const [mailboxRow] = await db
     .select()
     .from(mailboxes)
@@ -154,6 +157,9 @@ export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
       if (dedupSet.has(dedupId)) continue;
 
       const result = classifyEmail(email);
+      // #region agent log
+      fetch('http://127.0.0.1:7828/ingest/acee1b00-0ae6-44f2-ad30-c6d078b5f370',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b38543'},body:JSON.stringify({sessionId:'b38543',runId:'pre-fix',hypothesisId:'H1-H3',location:'worker/process-mailbox.ts:157',message:'classifier result shape',data:{type:result.type,isInvoice:result.isInvoice,confidence:result.confidence,portalUrlsCount:result.portalUrls.length,matchedAttachmentsCount:result.matchedAttachments.length},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (!result.classified || !result.type) continue;
 
       dedupSet.add(dedupId);
@@ -279,6 +285,9 @@ export async function processMailboxTask(task: ScanTaskRow): Promise<void> {
     const newCheckpoint = isGmail
       ? { ...checkpoint, nextBatchStart: newNextBatchStart }
       : { ...checkpoint, lastProcessedIndex: newNextBatchStart - 1 };
+    // #region agent log
+    fetch('http://127.0.0.1:7828/ingest/acee1b00-0ae6-44f2-ad30-c6d078b5f370',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b38543'},body:JSON.stringify({sessionId:'b38543',runId:'pre-fix',hypothesisId:'H4',location:'worker/process-mailbox.ts:282',message:'checkpoint update shape',data:{isGmail,newNextBatchStart,checkpointPhase:(newCheckpoint as { phase?: string }).phase},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     await db
       .update(scanTasks)
