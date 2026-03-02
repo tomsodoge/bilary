@@ -1,0 +1,51 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.section {
+  padding: 1.5rem;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.sectionTitle {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.checkboxLabel {
+  font-size: 0.9375rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #dc2626;
+}

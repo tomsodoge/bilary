@@ -1,0 +1,69 @@
+.zone {
+  --dropzone-border: #d1d5db;
+  --dropzone-border-hover: #9ca3af;
+  --dropzone-border-drag: #2563eb;
+  --dropzone-bg: #f9fafb;
+  --dropzone-bg-drag: #eff6ff;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  border: 2px dashed var(--dropzone-border);
+  border-radius: 8px;
+  background-color: var(--dropzone-bg);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.zone:hover {
+  border-color: var(--dropzone-border-hover);
+}
+
+.zone.dragOver {
+  border-color: var(--dropzone-border-drag);
+  background-color: var(--dropzone-bg-drag);
+}
+
+.zone.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zone.disabled:hover {
+  border-color: var(--dropzone-border);
+}
+
+.input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.text {
+  font-size: 0.9375rem;
+  color: #374151;
+  margin: 0;
+}
+
+.hint {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  margin: 0.25rem 0 0 0;
+}
+
+.error {
+  font-size: 0.8125rem;
+  color: #dc2626;
+  margin: 0.5rem 0 0 0;
+}

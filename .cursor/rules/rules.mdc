@@ -1,0 +1,119 @@
+---
+alwaysApply: true
+---
+
+# Cursor Rules (Projekt-Standard)
+
+## 0) Ziel
+Dieses Projekt wird stabil, nachvollziehbar und schrittweise entwickelt.
+Keine großen Umbaumaßnahmen ohne Plan. Keine "magischen" Fixes.
+
+---
+
+## 1) Arbeitsmodus (Pflicht)
+- Arbeite immer in kleinen, isolierten Änderungen.
+- Ändere pro Schritt maximal 1–3 Dateien.
+- Wenn du mehr als 3 Dateien anfassen willst: erst begründen und Plan schreiben.
+- Keine breitflächigen Refactors, wenn das aktuelle Problem lokal lösbar ist.
+- Wenn ein Fix nach 2 Versuchen nicht funktioniert: STOP, Ursachenanalyse statt weiterer Patches.
+
+### Vorgehen bei jeder Aufgabe
+1. Kurze Diagnose: Was ist das Problem? Wo liegt es? (Dateien nennen)
+2. Minimaler Fix-Plan (2–6 Bulletpoints)
+3. Umsetzung
+4. Verifikation: Wie prüfen wir, dass es wirklich behoben ist? (konkret)
+
+---
+
+## 2) Architekturregeln (harte Grenzen)
+### Layer-Trennung
+- UI/Komponenten: Darstellung und einfache Interaktion, keine Geschäftslogik.
+- API-Routen/Controller: Orchestrierung, keine komplexe Logik.
+- Services: Geschäftslogik (pure Funktionen bevorzugt).
+- DB/Repos: Datenzugriff, keine Geschäftsentscheidungen.
+- Schemas/Validierung: zentral (ein Ort), nicht verteilt.
+
+### Verbote
+- Keine Geschäftslogik in React-Komponenten.
+- Keine DB-Zugriffe in UI oder Komponenten.
+- Keine "helper" Dateien, die alles können (keine God-Utils).
+- Keine stillen Fallbacks ohne Logging/Erklärung.
+
+---
+
+## 3) Datenverträge (Schema first)
+- Jede externe Eingabe wird validiert (API Body, Query, Webhooks, AI Output).
+- Es gibt genau EIN Schema pro Datenvertrag (z.B. Zod).
+- AI-Ausgaben sind ungültig, bis sie das Schema bestehen.
+- Bei Schema-Fehler: sauberer Fehlerpfad + klare Fehlermeldung.
+
+---
+
+## 4) TypeScript-Disziplin
+- `strict` ist Pflicht.
+- Kein `any` (nur in extremen Ausnahmefällen mit Kommentar WHY + TODO).
+- Keine impliziten `as` Casts als "Fix".
+- Jede Funktion hat klaren Input/Output; Nebenwirkungen sind sichtbar.
+
+---
+
+## 5) AI-Nutzung (kontrolliert, deterministisch)
+### Grundsatz
+AI ist ein Parser/Extraktor, kein Architekt der Codebasis.
+
+### Output-Regeln für AI-Extraktion
+- AI muss **ausschließlich** valides JSON liefern (kein Fließtext).
+- Das JSON muss exakt dem definierten Schema entsprechen.
+- Keine optionalen Zusatzfelder "für später".
+- Jede Abweichung führt zu: Retry mit engeren Constraints oder Abbruch.
+
+### Platzierung im Code
+- AI-Calls liegen in einem dedizierten Modul (z.B. `/services/ai/*`).
+- API-Routen rufen nur Services auf, nicht direkt AI + DB gemischt.
+- AI-Ergebnis wird IMMER validiert, bevor es gespeichert oder weiterverarbeitet wird.
+
+---
+
+## 6) Fehlerbehebung (Anti-Loop-Regeln)
+- Bei Bugs zuerst reproduzieren, dann minimal fixen.
+- Kein "Rewrite everything", um einen Bug zu beheben.
+- Keine gleichzeitigen Änderungen in UI + API + DB in einem Patch.
+- Bei unklarem Fehler: erst Logging/Tracing ergänzen, dann fixen.
+
+### Wenn du unsicher bist
+- Sag ausdrücklich, welche Annahmen du triffst.
+- Nenne Alternativen und entscheide dich für den kleinsten Eingriff.
+
+---
+
+## 7) Tests & Qualität (pragmatisch)
+- Für kritische Logik (Parsing, Buchungslogik, Zuordnung) mindestens Unit-Tests.
+- Für API-Verträge: Schema-Tests oder einfache Contract-Tests.
+- Kein Test-Theater: lieber wenige, aber zentrale Tests.
+
+---
+
+## 8) Sicherheit & Datenschutz (Pflicht bei Bilary-ähnlichen Apps)
+- Keine Secrets im Code oder in Logs.
+- Logs enthalten keine vollständigen E-Mail-Inhalte, keine Anhänge, keine Tokens.
+- Datenminimierung: nur speichern, was wirklich gebraucht wird.
+- Jede externe Integration bekommt klare Error-Handling- und Retry-Strategie.
+
+---
+
+## 9) Stilregeln für Codeänderungen
+- Bevorzuge Lesbarkeit vor Cleverness.
+- Keine neuen Abhängigkeiten ohne Begründung.
+- Entferne toten Code, aber nur wenn klar, dass er wirklich ungenutzt ist.
+- Kommentare nur, wenn sie "Warum" erklären (nicht "Was").
+
+---
+
+## 10) Output-Format beim Antworten (damit du steuerbar bleibst)
+Wenn du Code vorschlägst oder änderst, liefere immer:
+- Betroffene Dateien (Liste)
+- Patch in klaren Blöcken
+- Kurze Erklärung, warum das minimal ist
+- Wie man es prüft (konkret)
+
+Ende.
