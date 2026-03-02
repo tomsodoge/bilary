@@ -96,7 +96,7 @@ function findPortalUrls(text: string): string[] {
       // Invalid URL, skip
     }
   }
-  return [...new Set(urls)];
+  return urls.filter((url, index) => urls.indexOf(url) === index);
 }
 
 function createResult(
